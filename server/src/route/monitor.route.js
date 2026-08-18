@@ -8,7 +8,7 @@ MonitorRouter.use(authMiddleware)
 MonitorRouter.get("/", MonitorController.getAll);
 MonitorRouter.post("/", MonitorController.create);
 MonitorRouter.get("/:id", MonitorController.getById);
-MonitorRouter.put("/:id", MonitorController.update);
+MonitorRouter.patch("/:id", MonitorController.update);
 MonitorRouter.delete("/:id", MonitorController.delete);
 
 MonitorRouter.get("/:id/check", MonitorController.check);

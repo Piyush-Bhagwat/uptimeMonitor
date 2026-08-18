@@ -45,6 +45,10 @@ export const MonitorController = {
     }),
     update: asyncHandler(async (req, res) => {
         const { url, interval, name, status, isActive } = req.body;
+        const oldMonitor = await MonitorModel.findById(req.params.id);
+        if (!oldMonitor) {
+            throw new ApiError(404, "Monitor not found");
+        }
         const monitor = await MonitorModel.findOneAndUpdate(
             { _id: req.params.id, userId: req.user.id },
             { url, interval, name, status, isActive },
@@ -53,6 +57,36 @@ export const MonitorController = {
         if (!monitor) {
             throw new ApiError(404, "Monitor not found");
         }
+
+        const shouldDelete = oldMonitor.interval !== monitor.interval || !monitor.isActive;
+        if (shouldDelete) {
+            await monitoringQueue.removeJobScheduler(`monitor-${monitor._id}`)
+            console.log("[MONITOR UPDATE] Repeatable job removed for monitor:", monitor._id);
+        }
+        if (monitor.isActive) {
+            await monitoringQueue.upsertJobScheduler(
+                `monitor-${monitor._id}`,
+                {
+                    every: monitor.interval * 60 * 1000
+                },
+                {
+                    name: "monitor-check",
+                    data: {
+                        monitorId: monitor._id.toString()
+                    },
+                    opts: {
+                        attempts: 3,
+                        backoff: {
+                            type: "fixed",
+                            delay: 5000
+                        }
+                    }
+                }
+            );
+            console.log("[MONITOR UPDATE] Repeatable job added for monitor:", monitor._id);
+        }
+        console.log(await monitoringQueue.getJobSchedulers());
+
         res.status(200).json({
             success: true,
             data: { monitor }

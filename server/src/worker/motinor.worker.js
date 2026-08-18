@@ -4,6 +4,7 @@ import { Worker } from "bullmq";
 import MonitorModel from "../model/monitor.model.js";
 import { checkEndpoint } from "../util/checkEndpoint.util.js";
 import { connectDB } from "../config/mongoose.config.js";
+import CheckModel from "../model/check.model.js";
 
 const worker = new Worker(
     "monitoring-checks",
@@ -22,8 +23,32 @@ const worker = new Worker(
         const result = await checkEndpoint(monitor.url);
         console.log(`Check result for monitor ${monitor.url}:`, result);
 
-        monitor.lastResult = {...result, checkedAt: new Date()};
+        monitor.lastResult = { ...result, checkedAt: new Date() };
         await monitor.save();
+
+        if (!result.success) {
+            // If this isn't the final attempt, throw so BullMQ retries
+            if (job.attemptsMade < 2) {
+                throw new Error(
+                    result.error || `Endpoint returned ${result.statusCode}`
+                );
+            }
+
+            // Final attempt failed → now treat it as DOWN
+            await CheckModel.create({
+                ...result,
+                status: "down",
+                timestamp: new Date(),
+                monitorId: monitor._id
+            });
+
+            return;
+        }
+
+        await CheckModel.create({
+            ...result, status: result.success ? "up" : "down",
+            timestamp: new Date(), monitorId: monitor._id
+        });
     },
     {
         connection: bullmqConnection

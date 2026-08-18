@@ -19,10 +19,11 @@ const monitorSchema = new Schema({
         enum: ["UP", "DOWN", "PAUSED"],
         default: "PAUSED"
     },
-    interval: {
+    interval: { //minutes
         type: Number,
         required: true,
-        default: 2
+        default: 2,
+        min: 1
     },
     lastResult: {
         success: String,
@@ -36,7 +37,7 @@ const monitorSchema = new Schema({
     },
     isActive: {
         type: Boolean,
-        default: true
+        default: false
     }
 }, { timestamps: true });
 
