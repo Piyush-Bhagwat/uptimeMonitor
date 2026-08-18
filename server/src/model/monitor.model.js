@@ -38,6 +38,16 @@ const monitorSchema = new Schema({
     isActive: {
         type: Boolean,
         default: false
+    },
+    aiExplanation: {
+        "24h": {
+            text: String,
+            generatedAt: Date
+        },
+        "7d": {
+            text: String,
+            generatedAt: Date
+        }
     }
 }, { timestamps: true });
 

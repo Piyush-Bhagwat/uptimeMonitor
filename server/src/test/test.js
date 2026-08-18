@@ -1,11 +1,13 @@
-import express from "express";
+import "dotenv/config";
+import { GoogleGenAI } from "@google/genai";
 
-const app = express();
-
-app.get("/", (req, res) => {
-    res.status(200).json({ message: "I'm alive" });
+const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_KEY
 });
 
-app.listen(4000, () => {
-    console.log("Test server running on http://localhost:4000");
+const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: "Explain what an HTTP 500 error means in one sentence. and use slang language only"
 });
+
+console.log(response.text);
