@@ -1,4 +1,11 @@
-import { checkEndpoint } from "../util/checkEndpoint.util.js";
+import express from "express";
 
-const result = await checkEndpoint("https://brtengine.instabooking.in");
-console.log({result});
+const app = express();
+
+app.get("/", (req, res) => {
+    res.status(200).json({ message: "I'm alive" });
+});
+
+app.listen(4000, () => {
+    console.log("Test server running on http://localhost:4000");
+});

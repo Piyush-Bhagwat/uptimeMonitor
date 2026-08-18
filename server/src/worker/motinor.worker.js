@@ -5,6 +5,7 @@ import MonitorModel from "../model/monitor.model.js";
 import { checkEndpoint } from "../util/checkEndpoint.util.js";
 import { connectDB } from "../config/mongoose.config.js";
 import CheckModel from "../model/check.model.js";
+import IncidentModel from "../model/incident.model.js";
 
 const worker = new Worker(
     "monitoring-checks",
@@ -26,6 +27,9 @@ const worker = new Worker(
         monitor.lastResult = { ...result, checkedAt: new Date() };
         await monitor.save();
 
+        const activeIncidents = await IncidentModel.findOne({ monitorId: monitor._id, endTime: null });
+
+
         if (!result.success) {
             // If this isn't the final attempt, throw so BullMQ retries
             if (job.attemptsMade < 2) {
@@ -35,20 +39,38 @@ const worker = new Worker(
             }
 
             // Final attempt failed → now treat it as DOWN
-            await CheckModel.create({
+            const check = await CheckModel.create({
                 ...result,
                 status: "down",
                 timestamp: new Date(),
                 monitorId: monitor._id
             });
 
+            if (!activeIncidents) {
+                await IncidentModel.create({
+                    monitorId: monitor._id,
+                    startTime: new Date(),
+                    httpStatus: result.statusCode || 0,
+                    errorMessage: result.error || `Endpoint returned ${result.statusCode}`,
+                    checkIds: [check._id]
+                });
+            } else {
+                activeIncidents.checkIds.push(check._id);
+                await activeIncidents.save();
+            }
             return;
         }
 
-        await CheckModel.create({
-            ...result, status: result.success ? "up" : "down",
+        const check = await CheckModel.create({ //and one question is this always success route?
+            ...result, status: "up",
             timestamp: new Date(), monitorId: monitor._id
         });
+
+        if (activeIncidents) {
+            activeIncidents.endTime = new Date();
+            await activeIncidents.save();
+        }
+
     },
     {
         connection: bullmqConnection
