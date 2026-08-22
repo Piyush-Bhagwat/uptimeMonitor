@@ -2,6 +2,7 @@ import { checkEndpoint, normalizeUrl } from "../util/checkEndpoint.util.js";
 import MonitorModel from "../model/monitor.model.js";
 import { ApiError, asyncHandler } from "../util/asyncHandler.util.js";
 import monitoringQueue from "../queue/monitor.queue.js";
+import { MonitorService } from "../service/monitor.service.js";
 
 export const MonitorController = {
     create: asyncHandler(async (req, res) => {
@@ -107,15 +108,11 @@ export const MonitorController = {
         if (!monitor) {
             throw new ApiError(404, "Monitor not found");
         }
-        await monitoringQueue.add(
-            "check-endpoint",
-            {
-                monitorId: monitor._id.toString(),
-            }
-        );
+        const data = await MonitorService.checkMonitor(monitor._id);
+
         res.status(202).json({
             success: true,
-            message: "Monitor check initiated"
+            data
         });
     })
 }

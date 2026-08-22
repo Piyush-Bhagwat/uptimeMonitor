@@ -19,34 +19,6 @@ export const AnalyticsController = {
         }
 
         const analyticsData = await AnalyticsService.analyzeChecks(id, range);
-        const cached = monitor.aiExplanation?.[range];
-
-        const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
-
-        const cacheValid =
-            cached?.text &&
-            cached?.generatedAt &&
-            Date.now() - new Date(cached.generatedAt).getTime() < CACHE_DURATION;
-
-        if (!cacheValid) {
-            try {
-                const prompt = GeminiService.getAnalyticsPrompt(analyticsData, monitor);
-                const geminiResponse = await GeminiService.generate(prompt);
-                console.log("[ANALYTICS] Gemini response:", geminiResponse);
-                monitor.aiExplanation[range] = {
-                    text: geminiResponse,
-                    generatedAt: new Date()
-                };
-                await monitor.save();
-            } catch (error) {
-                console.error("[ANALYTICS] Gemini API error:", error);
-                // If there's an error with the Gemini API, we can still return the analytics data without the AI explanation.}
-            }
-        }
-        analyticsData.explanation = {
-            text: monitor.aiExplanation[range]?.text ?? "No explanation available",
-            generatedAt: monitor.aiExplanation[range]?.generatedAt ?? null
-        };
 
         res.status(200).json({ message: "Analytics data", data: { analyticsData } });
     })
