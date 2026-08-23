@@ -16,10 +16,25 @@ import { Label } from "@/components/ui/label";
 
 import { apiFetch } from "@/lib/api";
 
-export default function MonitorFormDialog({
-    monitor = null,
-    onSuccess,
-}) {
+const DOWN = "#FB7185";
+
+// Shared field wrapper so label + input spacing stays identical across the
+// three fields without repeating classNames three times.
+function Field({ id, label, children }) {
+    return (
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-[11px] uppercase tracking-[0.12em] text-white/40">
+                {label}
+            </Label>
+            {children}
+        </div>
+    );
+}
+
+const inputClass =
+    "border-white/[0.08] bg-black/20 text-white placeholder:text-white/25 focus-visible:ring-1 focus-visible:ring-[#2DD4BF]/40 focus-visible:border-[#2DD4BF]/40";
+
+export default function MonitorFormDialog({ monitor = null, onSuccess }) {
     const isEdit = Boolean(monitor);
 
     const [open, setOpen] = useState(false);
@@ -54,31 +69,18 @@ export default function MonitorFormDialog({
         setError("");
 
         try {
-            const payload = {
-                name,
-                url,
-                interval: Number(interval),
-            };
+            const payload = { name, url, interval: Number(interval) };
 
-            const response = await apiFetch(
-                isEdit
-                    ? `/monitor/${monitor._id}`
-                    : "/monitor",
-                {
-                    method: isEdit ? "PATCH" : "POST",
-                    body: JSON.stringify(payload),
-                }
-            );
+            const response = await apiFetch(isEdit ? `/monitor/${monitor._id}` : "/monitor", {
+                method: isEdit ? "PATCH" : "POST",
+                body: JSON.stringify(payload),
+            });
 
             onSuccess(response.data.monitor);
-
             setOpen(false);
         } catch (error) {
             console.error(error);
-            setError(
-                error.message ||
-                `Failed to ${isEdit ? "update" : "create"} monitor`
-            );
+            setError(error.message || `Failed to ${isEdit ? "update" : "create"} monitor`);
         } finally {
             setLoading(false);
         }
@@ -89,84 +91,68 @@ export default function MonitorFormDialog({
             <DialogTrigger
                 render={
                     <Button
-                        variant={isEdit ? "outline" : "default"}
                         onClick={(e) => e.stopPropagation()}
+                        className={
+                            isEdit
+                                ? "border border-white/[0.08] bg-transparent text-white/60 hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+                                : "bg-white text-black hover:bg-white/90"
+                        }
                     />
                 }
             >
-                {isEdit ? "Edit" : "+ Add Monitor"}
+                {isEdit ? "Edit" : "+ Add monitor"}
             </DialogTrigger>
 
-            <DialogContent>
+            <DialogContent className="border border-white/[0.08] bg-[#12151C] text-white sm:rounded-2xl">
                 <DialogHeader>
-                    <DialogTitle>
-                        {isEdit
-                            ? "Edit Monitor"
-                            : "Create Monitor"}
+                    <DialogTitle className="font-display text-lg font-medium text-white/90">
+                        {isEdit ? "Edit monitor" : "Create monitor"}
                     </DialogTitle>
                 </DialogHeader>
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="space-y-4"
-                >
-                    <div className="space-y-2">
-                        <Label htmlFor="monitor-name">
-                            Name
-                        </Label>
-
+                <form onSubmit={handleSubmit} className="space-y-5 pt-2">
+                    <Field id="monitor-name" label="Name">
                         <Input
                             id="monitor-name"
                             value={name}
-                            onChange={(e) =>
-                                setName(e.target.value)
-                            }
+                            onChange={(e) => setName(e.target.value)}
                             placeholder="Google"
                             required
+                            className={inputClass}
                         />
-                    </div>
+                    </Field>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="monitor-url">
-                            URL
-                        </Label>
-
+                    <Field id="monitor-url" label="URL">
                         <Input
                             id="monitor-url"
                             value={url}
-                            onChange={(e) =>
-                                setUrl(e.target.value)
-                            }
+                            onChange={(e) => setUrl(e.target.value)}
                             placeholder="https://google.com"
                             required
+                            className={`font-mono ${inputClass}`}
                         />
-                    </div>
+                    </Field>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="monitor-interval">
-                            Interval (minutes)
-                        </Label>
-
+                    <Field id="monitor-interval" label="Interval (minutes)">
                         <Input
                             id="monitor-interval"
                             type="number"
                             min={1}
                             value={interval}
-                            onChange={(e) =>
-                                setInterval(e.target.value)
-                            }
+                            onChange={(e) => setInterval(e.target.value)}
                             required
+                            className={`font-mono ${inputClass}`}
                         />
-                    </div>
+                    </Field>
 
                     {error && (
-                        <p className="text-sm text-red-500">
+                        <p className="font-mono text-xs" style={{ color: DOWN }}>
                             {error}
                         </p>
                     )}
 
                     <Button
-                        className="w-full"
+                        className="w-full bg-white text-black hover:bg-white/90"
                         type="submit"
                         disabled={loading}
                     >
@@ -175,8 +161,8 @@ export default function MonitorFormDialog({
                                 ? "Updating..."
                                 : "Creating..."
                             : isEdit
-                                ? "Update Monitor"
-                                : "Create Monitor"}
+                                ? "Update monitor"
+                                : "Create monitor"}
                     </Button>
                 </form>
             </DialogContent>

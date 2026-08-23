@@ -1,57 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-    Activity,
-    AlertCircle,
-    CheckCircle2,
-    Clock,
-    XCircle,
-    Pause,
-    Play,
-} from "lucide-react";
+import { Activity, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 import MonitorFormDialog from "@/components/MonitorFormDialog";
-
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/lib/store/authStore";
 import MonitorCard from "@/components/MonitorCard";
 
-// Helper component for styled status badges
-function StatusBadge({ status }) {
-    const normalizedStatus = status?.toUpperCase() || "UNKNOWN";
+// Same tokens as the monitor detail page — keep these in sync if you move
+// them to a shared file (e.g. `@/lib/theme.js`).
+const UP = "#2DD4BF";
+const DOWN = "#FB7185";
+const MUTE = "#767E8C";
 
-    switch (normalizedStatus) {
-        case "UP":
-            return (
-                <Badge className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> UP
-                </Badge>
-            );
-        case "DOWN":
-            return (
-                <Badge variant="destructive" className="flex items-center gap-1">
-                    <XCircle className="h-3 w-3" /> DOWN
-                </Badge>
-            );
-        default:
-            return (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> {normalizedStatus}
-                </Badge>
-            );
-    }
+function FleetPill({ label, value, color }) {
+    return (
+        <div className="flex items-center gap-2 font-mono text-xs text-white/50">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+            {value} <span className="text-white/30">{label}</span>
+        </div>
+    );
 }
 
 export default function MonitorsPage() {
@@ -61,13 +33,12 @@ export default function MonitorsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const { token, initialized } = useAuth();
+
     async function fetchMonitors() {
         try {
             setLoading(true);
             setError("");
-
             const data = await apiFetch("/monitor");
-
             setMonitors(data.data.monitors);
         } catch (error) {
             console.error(error);
@@ -76,32 +47,49 @@ export default function MonitorsPage() {
             setLoading(false);
         }
     }
+
     function addMonitor(newMonitor) {
         setMonitors((prev) => [newMonitor, ...prev]);
     }
 
+    function handleMonitorUpdate(updatedMonitor) {
+        setMonitors((prev) =>
+            prev.map((monitor) => (monitor._id === updatedMonitor._id ? updatedMonitor : monitor))
+        );
+    }
+
     useEffect(() => {
         if (!initialized) return;
-
         if (!token) {
             router.replace("/login");
             return;
         }
-
         fetchMonitors();
     }, [initialized, token]);
 
+    const counts = useMemo(() => {
+        const up = monitors.filter((m) => m.status?.toUpperCase() === "UP").length;
+        const down = monitors.filter((m) => m.status?.toUpperCase() === "DOWN").length;
+        const other = monitors.length - up - down;
+        return { up, down, other };
+    }, [monitors]);
+
     if (loading) {
         return (
-            <main className="p-6 md:p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                    <Skeleton className="h-10 w-32" />
-                    <Skeleton className="h-10 w-40" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <Skeleton key={i} className="h-32 w-full rounded-xl" />
-                    ))}
+            <main className="min-h-screen bg-[#0B0D12] p-6 md:p-10">
+                <div className="mx-auto w-full max-w-6xl space-y-8">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <Skeleton className="h-3 w-20 bg-white/5" />
+                            <Skeleton className="h-9 w-40 bg-white/5" />
+                        </div>
+                        <Skeleton className="h-10 w-36 bg-white/5" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <Skeleton key={i} className="h-32 w-full rounded-2xl bg-white/5" />
+                        ))}
+                    </div>
                 </div>
             </main>
         );
@@ -109,66 +97,63 @@ export default function MonitorsPage() {
 
     if (error) {
         return (
-            <main className="p-6 md:p-8">
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
+            <main className="min-h-screen bg-[#0B0D12] p-6 md:p-10">
+                <div className="mx-auto w-full max-w-6xl">
+                    <Alert variant="destructive" className="border-[#FB7185]/30 bg-[#FB7185]/10">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                </div>
             </main>
         );
     }
 
-    function handleMonitorUpdate(updatedMonitor) {
-        setMonitors((prev) =>
-            prev.map((monitor) =>
-                monitor._id === updatedMonitor._id
-                    ? updatedMonitor
-                    : monitor
-            )
-        );
-    }
-
     return (
-        <main className="p-6 md:p-8">
-            {/* Header Area */}
-            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Monitors</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Manage and track your website uptime.
-                    </p>
+        <main className="min-h-screen bg-[#0B0D12] px-6 pb-24 pt-8 text-white md:px-10">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+
+                {/* Header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="space-y-2">
+                        <div className="text-[11px] uppercase tracking-[0.2em] text-white/30">Fleet</div>
+                        <h1 className="font-display text-3xl font-semibold tracking-tight">Monitors</h1>
+                        {monitors.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-4 pt-1">
+                                <FleetPill label="up" value={counts.up} color={UP} />
+                                <FleetPill label="down" value={counts.down} color={DOWN} />
+                                {counts.other > 0 && <FleetPill label="pending" value={counts.other} color={MUTE} />}
+                            </div>
+                        )}
+                    </div>
+
+                    <MonitorFormDialog onSuccess={addMonitor} />
                 </div>
 
-                <MonitorFormDialog onSuccess={addMonitor} />
+                {/* Grid */}
+                {monitors.length === 0 ? (
+                    <div className="flex min-h-[380px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] text-center">
+                        <Activity className="h-10 w-10 text-white/15" />
+                        <h3 className="mt-4 font-display text-lg text-white/80">No monitors yet</h3>
+                        <p className="mb-1 mt-2 max-w-xs text-sm text-white/40">
+                            You haven't set up any monitors. Add a URL to start tracking uptime.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {monitors.map((monitor) => (
+                            <MonitorCard
+                                key={monitor._id}
+                                monitor={monitor}
+                                onDelete={(id) => {
+                                    setMonitors((prev) => prev.filter((monitor) => monitor._id !== id));
+                                }}
+                                onUpdate={handleMonitorUpdate}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
-
-            {/* Monitors Grid */}
-            {monitors.length === 0 ? (
-                <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed text-center animate-in fade-in-50">
-                    <Activity className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                    <h3 className="mt-4 text-lg font-semibold">No monitors found</h3>
-                    <p className="mb-4 mt-2 text-sm text-muted-foreground">
-                        You haven't set up any monitors yet. Start by creating one.
-                    </p>
-                    {/* If CreateMonitorDialog can act as a standalone button, you could place a duplicate here */}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {monitors.map((monitor) => (
-                        <MonitorCard
-                            key={monitor._id}
-                            monitor={monitor}
-                            onDelete={(id) => {
-                                setMonitors((prev) =>
-                                    prev.filter((monitor) => monitor._id !== id)
-                                );
-                            }}
-                            onUpdate={handleMonitorUpdate}
-                        />
-                    ))}
-                </div>
-            )}
         </main>
     );
 }
